@@ -6,30 +6,38 @@ from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import string
-
+import os # <-- AJOUTER CET IMPORT
 
 # --- DÉBUT DE LA NOUVELLE SOLUTION ---
 
+# 1. Définir un chemin local pour les données NLTK
+NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
+
+# 2. Créer le dossier s'il n'existe pas
+if not os.path.exists(NLTK_DATA_DIR):
+    os.makedirs(NLTK_DATA_DIR)
+
+# 3. Dire à NLTK de TOUJOURS chercher les données ici
+nltk.data.path.append(NLTK_DATA_DIR)
+
 @st.cache_resource  # Met en cache cette fonction
-def download_nltk_resources():
-    """Télécharge les paquets NLTK requis de manière sécurisée."""
+def download_nltk_resources(download_dir):
+    """Télécharge les paquets NLTK requis dans un dossier spécifique."""
     try:
-        nltk.download('punkt')
-        nltk.download('stopwords')
-        nltk.download('wordnet')
-        print("Téléchargement NLTK réussi.")
+        # Spécifier le dossier de téléchargement !
+        nltk.download('punkt', download_dir=download_dir)
+        nltk.download('stopwords', download_dir=download_dir)
+        nltk.download('wordnet', download_dir=download_dir)
+        print(f"Téléchargement NLTK réussi dans {download_dir}")
         return True
     except Exception as e:
         print(f"Erreur lors du téléchargement NLTK : {e}")
         return False
 
-
 # Exécute la fonction de téléchargement au démarrage
-NLTK_READY = download_nltk_resources()
-
+NLTK_READY = download_nltk_resources(NLTK_DATA_DIR)
 
 # --- FIN DE LA NOUVELLE SOLUTION ---
-
 
 def preprocess_text(text):
     """
