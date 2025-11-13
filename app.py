@@ -8,11 +8,28 @@ from sklearn.metrics.pairwise import cosine_similarity
 import string
 
 
-# Configuration initiale de NLTK (à exécuter une seule fois)
-# Vous pouvez les décommenter pour le premier lancement
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('wordnet')
+# --- DÉBUT DE LA NOUVELLE SOLUTION ---
+
+@st.cache_resource  # Met en cache cette fonction
+def download_nltk_resources():
+    """Télécharge les paquets NLTK requis de manière sécurisée."""
+    try:
+        nltk.download('punkt')
+        nltk.download('stopwords')
+        nltk.download('wordnet')
+        print("Téléchargement NLTK réussi.")
+        return True
+    except Exception as e:
+        print(f"Erreur lors du téléchargement NLTK : {e}")
+        return False
+
+
+# Exécute la fonction de téléchargement au démarrage
+NLTK_READY = download_nltk_resources()
+
+
+# --- FIN DE LA NOUVELLE SOLUTION ---
+
 
 def preprocess_text(text):
     """
@@ -47,60 +64,67 @@ st.set_page_config(page_title="Détecteur de Similarité", layout="wide")
 st.title("🔎 Détecteur de Similarité de Texte (Plagiat)")
 st.write("Basé sur TF-IDF et la Similarité Cosinus")
 
-# Créer deux colonnes pour les boîtes de texte
-col1, col2 = st.columns(2)
+# --- AJOUTER CETTE VÉRIFICATION ---
+if NLTK_READY:
+    # Créer deux colonnes pour les boîtes de texte
+    col1, col2 = st.columns(2)
 
-with col1:
-    st.header("Texte 1")
-    text1 = st.text_area("Collez votre premier texte ici :", height=300, key="txt1")
+    with col1:
+        st.header("Texte 1")
+        text1 = st.text_area("Collez votre premier texte ici :", height=300, key="txt1")
 
-with col2:
-    st.header("Texte 2")
-    text2 = st.text_area("Collez votre deuxième texte ici :", height=300, key="txt2")
+    with col2:
+        st.header("Texte 2")
+        text2 = st.text_area("Collez votre deuxième texte ici :", height=300, key="txt2")
 
-# Bouton pour lancer le calcul
-if st.button("Calculer la Similarité", type="primary"):
-    if text1.strip() and text2.strip():
-        # 1. Prétraitement du texte
-        st.write("Prétraitement en cours...")
-        proc_text1 = preprocess_text(text1)
-        proc_text2 = preprocess_text(text2)
+    # Bouton pour lancer le calcul
+    if st.button("Calculer la Similarité", type="primary"):
+        if text1.strip() and text2.strip():
+            # 1. Prétraitement du texte
+            st.write("Prétraitement en cours...")
+            proc_text1 = preprocess_text(text1)
+            proc_text2 = preprocess_text(text2)
 
-        documents = [proc_text1, proc_text2]
+            documents = [proc_text1, proc_text2]
 
-        # 2. Vectorisation (TF-IDF)
-        st.write("Vectorisation (TF-IDF)...")
-        vectorizer = TfidfVectorizer()
-        tfidf_matrix = vectorizer.fit_transform(documents)
+            # 2. Vectorisation (TF-IDF)
+            st.write("Vectorisation (TF-IDF)...")
+            vectorizer = TfidfVectorizer()
+            tfidf_matrix = vectorizer.fit_transform(documents)
 
-        # 3. Modélisation (Calcul de la similarité cosinus) [cite: 47]
-        st.write("Calcul de la similarité cosinus...")
-        # On compare le vecteur 0 (texte 1) au vecteur 1 (texte 2)
-        cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
+            # 3. Modélisation (Calcul de la similarité cosinus)
+            st.write("Calcul de la similarité cosinus...")
+            # On compare le vecteur 0 (texte 1) au vecteur 1 (texte 2)
+            cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
 
-        # Le résultat est une matrice, on prend le premier (et seul) élément
-        similarity_score = cosine_sim[0][0]
+            # Le résultat est une matrice, on prend le premier (et seul) élément
+            similarity_score = cosine_sim[0][0]
 
-        # Affichage des résultats
-        st.divider()
-        st.subheader("Résultats")
+            # Affichage des résultats
+            st.divider()
+            st.subheader("Résultats")
 
-        # Formater le score en pourcentage
-        score_percent = similarity_score * 100
+            # Formater le score en pourcentage
+            score_percent = similarity_score * 100
 
-        st.metric(
-            label="Score de Similarité",
-            value=f"{score_percent:.2f} %"
-        )
+            st.metric(
+                label="Score de Similarité",
+                value=f"{score_percent:.2f} %"
+            )
 
-        st.progress(similarity_score)
+            st.progress(similarity_score)
 
-        if similarity_score > 0.8:
-            st.error("🚨 **Alerte :** Similarité très élevée. Risque de plagiat.")
-        elif similarity_score > 0.5:
-            st.warning("⚠️ **Avertissement :** Similarité notable. Les textes partagent un vocabulaire commun.")
+            if similarity_score > 0.8:
+                st.error("🚨 **Alerte :** Similarité très élevée. Risque de plagiat.")
+            elif similarity_score > 0.5:
+                st.warning("⚠️ **Avertissement :** Similarité notable. Les textes partagent un vocabulaire commun.")
+            else:
+                st.success("✅ **OK :** Les textes semblent différents.")
+
         else:
-            st.success("✅ **OK :** Les textes semblent différents.")
+            st.warning("Veuillez entrer du texte dans les deux boîtes.")
 
-    else:
-        st.warning("Veuillez entrer du texte dans les deux boîtes.")
+else:
+    # Si NLTK n'a pas pu se télécharger, afficher une erreur
+    st.error("Erreur critique : L'application n'a pas pu télécharger les ressources NLTK nécessaires pour fonctionner.")
+    st.stop()
