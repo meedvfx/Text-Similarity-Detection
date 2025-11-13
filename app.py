@@ -1,108 +1,62 @@
 import streamlit as st
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
+import re  # Importation de la bibliothèque RegEx
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import string
-import os # <-- AJOUTER CET IMPORT
 
-# --- DÉBUT DE LA NOUVELLE SOLUTION ---
-
-# 1. Définir un chemin local pour les données NLTK
-NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
-
-# 2. Créer le dossier s'il n'existe pas
-if not os.path.exists(NLTK_DATA_DIR):
-    os.makedirs(NLTK_DATA_DIR)
-
-# 3. Dire à NLTK de TOUJOURS chercher les données ici
-nltk.data.path.append(NLTK_DATA_DIR)
-
-@st.cache_resource  # Met en cache cette fonction
-def download_nltk_resources(download_dir):
-    """Télécharge les paquets NLTK requis dans un dossier spécifique."""
-    try:
-        # Spécifier le dossier de téléchargement !
-        nltk.download('punkt', download_dir=download_dir)
-        nltk.download('stopwords', download_dir=download_dir)
-        nltk.download('wordnet', download_dir=download_dir)
-        print(f"Téléchargement NLTK réussi dans {download_dir}")
-        return True
-    except Exception as e:
-        print(f"Erreur lors du téléchargement NLTK : {e}")
-        return False
-
-# Exécute la fonction de téléchargement au démarrage
-NLTK_READY = download_nltk_resources(NLTK_DATA_DIR)
-
-# --- FIN DE LA NOUVELLE SOLUTION ---
 
 def preprocess_text(text):
     """
-    Applique le prétraitement au texte :
-    1. Minuscules
-    2. Tokenisation
-    3. Suppression de la ponctuation
-    4. Suppression des stopwords
-    5. Lemmatisation
+    Applique le prétraitement au texte avec RegEx (sans NLTK) :
+    1. Met en minuscules
+    2. Supprime la ponctuation et les chiffres
     """
     # 1. Minuscules
     text_lower = text.lower()
 
-    # 2. Tokenisation
-    tokens = word_tokenize(text_lower)
+    # 2. Suppression de tout ce qui n'est pas une lettre ou un espace
+    # C'est ici que 're' est utilisé
+    text_cleaned = re.sub(r'[^a-z\s]', '', text_lower)
 
-    # 3. Suppression de la ponctuation
-    tokens = [w for w in tokens if w not in string.punctuation]
+    # 3. Suppression des espaces multiples
+    text_cleaned = re.sub(r'\s+', ' ', text_cleaned).strip()
 
-    # 4. Suppression des stopwords (anglais par défaut, changez pour 'french')
-    stop_words = set(stopwords.words('english'))
-    cleaned_tokens = [w for w in tokens if w not in stop_words and w.isalnum()]
-
-    # 5. Lemmatisation
-    lemmatizer = WordNetLemmatizer()
-    lemmatized_tokens = [lemmatizer.lemmatize(t) for t in cleaned_tokens]
-
-    return " ".join(lemmatized_tokens)
+    return text_cleaned
 
 
 st.set_page_config(page_title="Détecteur de Similarité", layout="wide")
 st.title("🔎 Détecteur de Similarité de Texte (Plagiat)")
 st.write("Basé sur TF-IDF et la Similarité Cosinus")
 
-# --- AJOUTER CETTE VÉRIFICATION ---
-if NLTK_READY:
-    # Créer deux colonnes pour les boîtes de texte
-    col1, col2 = st.columns(2)
+# Créer deux colonnes pour les boîtes de texte
+col1, col2 = st.columns(2)
 
-    with col1:
-        st.header("Texte 1")
-        text1 = st.text_area("Collez votre premier texte ici :", height=300, key="txt1")
+with col1:
+    st.header("Texte 1")
+    text1 = st.text_area("Collez votre premier texte ici :", height=300, key="txt1")
 
-    with col2:
-        st.header("Texte 2")
-        text2 = st.text_area("Collez votre deuxième texte ici :", height=300, key="txt2")
+with col2:
+    st.header("Texte 2")
+    text2 = st.text_area("Collez votre deuxième texte ici :", height=300, key="txt2")
 
-    # Bouton pour lancer le calcul
-    if st.button("Calculer la Similarité", type="primary"):
-        if text1.strip() and text2.strip():
-            # 1. Prétraitement du texte
-            st.write("Prétraitement en cours...")
-            proc_text1 = preprocess_text(text1)
-            proc_text2 = preprocess_text(text2)
+# Bouton pour lancer le calcul
+if st.button("Calculer la Similarité", type="primary"):
+    if text1.strip() and text2.strip():
+        # 1. Prétraitement du texte (maintenant avec 're')
+        st.write("Prétraitement en cours...")
+        proc_text1 = preprocess_text(text1)
+        proc_text2 = preprocess_text(text2)
 
-            documents = [proc_text1, proc_text2]
+        documents = [proc_text1, proc_text2]
 
-            # 2. Vectorisation (TF-IDF)
-            st.write("Vectorisation (TF-IDF)...")
-            vectorizer = TfidfVectorizer()
-            tfidf_matrix = vectorizer.fit_transform(documents)
+        # 2. Vectorisation (TF-IDF)
+        st.write("Vectorisation (TF-IDF)...")
+        # TfidfVectorizer va maintenant travailler sur le texte déjà nettoyé
+        vectorizer = TfidfVectorizer()
+        tfidf_matrix = vectorizer.fit_transform(documents)
 
+        try:
             # 3. Modélisation (Calcul de la similarité cosinus)
             st.write("Calcul de la similarité cosinus...")
-            # On compare le vecteur 0 (texte 1) au vecteur 1 (texte 2)
             cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
 
             # Le résultat est une matrice, on prend le premier (et seul) élément
@@ -129,10 +83,10 @@ if NLTK_READY:
             else:
                 st.success("✅ **OK :** Les textes semblent différents.")
 
-        else:
-            st.warning("Veuillez entrer du texte dans les deux boîtes.")
+        except ValueError:
+            # Gère le cas où les textes sont vides après prétraitement
+            # (par exemple, si l'utilisateur ne met que des chiffres ou de la ponctuation)
+            st.warning("Les textes sont vides après nettoyage. Impossible de calculer la similarité.")
 
-else:
-    # Si NLTK n'a pas pu se télécharger, afficher une erreur
-    st.error("Erreur critique : L'application n'a pas pu télécharger les ressources NLTK nécessaires pour fonctionner.")
-    st.stop()
+    else:
+        st.warning("Veuillez entrer du texte dans les deux boîtes.")
