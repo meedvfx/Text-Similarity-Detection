@@ -58,7 +58,6 @@ if model_choice == 'TF-IDF':
         (1, 2, 3, 4),
         index=0,
         format_func=lambda x: f"{x} (jusqu'à {x}-grams)" if x > 1 else f"{x} (mots seuls)",
-        help="1: Mots seuls. 2: Mots seuls et bi-grams. 3: ...et tri-grams."
     )
     # TfidfVectorizer attend un tuple (min_n, max_n)
     ngram_tuple = (1, ngram_max)
