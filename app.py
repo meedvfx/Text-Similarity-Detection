@@ -2,7 +2,16 @@ import streamlit as st
 import re  # Importation de la bibliothèque RegEx
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sentence_transformers import SentenceTransformer, util
 
+@st.cache_resource  # Important : Met le modèle en cache
+def load_sbert_model():
+    """Charge le modèle Sentence-BERT une seule fois."""
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    return model
+
+# Charger le modèle au démarrage de l'application
+sbert_model = load_sbert_model()
 
 def preprocess_text(text):
     """
@@ -121,13 +130,41 @@ if st.button("Calculer la Similarité", type="primary"):
                 st.warning("Les textes sont vides après nettoyage. Impossible de calculer la similarité.")
 
         # --- Blocs pour les futurs modèles ---
-
         elif model_choice == 'Sentence-BERT (S-BERT)':
             st.subheader("Résultats (Modèle : Sentence-BERT)")
-            st.info("🚧 Ce modèle n'est pas encore développé.")
-            st.write(
-                "L'implémentation de Sentence-BERT (S-BERT) viendra ici. Ce modèle est excellent pour comprendre le *sens* sémantique des phrases.")
 
+            # S-BERT préfère le texte brut, pas de pré-traitement !
+            documents = [text1, text2]
+
+            # 1. Créer les embeddings (vecteurs sémantiques)
+            st.write("Calcul des embeddings sémantiques...")
+            embeddings = sbert_model.encode(documents)
+
+            # 2. Calculer la similarité cosinus
+            st.write("Calcul de la similarité cosinus...")
+            # On compare le vecteur 0 et le vecteur 1
+            cosine_sim = util.pytorch_cos_sim(embeddings[0], embeddings[1])
+
+            # Extraire le score (c'est un tenseur PyTorch)
+            similarity_score = cosine_sim[0][0].item()
+
+            # 3. Afficher les résultats
+            st.divider()
+            score_percent = similarity_score * 100
+            st.metric(
+                label="Score de Similarité (S-BERT)",
+                value=f"{score_percent:.2f} %"
+            )
+            st.progress(similarity_score)
+
+            if similarity_score > 0.8:
+                st.error("🚨 **Alerte :** Similarité sémantique très élevée.")
+            elif similarity_score > 0.5:
+                st.warning("⚠️ **Avertissement :** Similarité sémantique notable.")
+            else:
+                st.success("✅ **OK :** Les textes semblent sémantiquement différents.")
+
+            # --- BLOC LSTM (TOUJOURS EN ATTENTE) ---
         elif model_choice == 'LSTM':
             st.subheader("Résultats (Modèle : LSTM)")
             st.info("🚧 Ce modèle n'est pas encore développé.")
