@@ -1,24 +1,16 @@
 import streamlit as st
-import re  # Importation de la bibliothèque RegEx
+import re
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer, util
 
-@st.cache_resource  # Important : Met le modèle en cache
+@st.cache_resource 
 def load_sbert_model():
-    """Charge le modèle Sentence-BERT une seule fois."""
     model = SentenceTransformer('all-MiniLM-L6-v2')
     return model
-
-# Charger le modèle au démarrage de l'application
 sbert_model = load_sbert_model()
 
 def preprocess_text(text):
-    """
-    Applique le prétraitement au texte avec RegEx (sans NLTK) :
-    1. Met en minuscules
-    2. Supprime la ponctuation et les chiffres
-    """
     # 1. Minuscules
     text_lower = text.lower()
 
