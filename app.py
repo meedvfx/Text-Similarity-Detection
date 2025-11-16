@@ -25,7 +25,7 @@ def preprocess_text(text):
 
 
 st.set_page_config(page_title="Détecteur de Similarité", layout="wide")
-st.title("🔎 Détecteur de Similarité de Texte (Plagiat)")
+st.title("🔎 Détecteur de Similarité de Texte")
 st.write("Comparaison de modèles pour la détection de similarité.")
 
 st.divider()
