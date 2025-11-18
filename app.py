@@ -1,40 +1,70 @@
 import streamlit as st
-import re  # Importation de la bibliothèque RegEx
+import re
+import pypdf  # Bibliothèque pour lire les PDF
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer, util
 
-@st.cache_resource  # Important : Met le modèle en cache
-def load_sbert_model():
-    """Charge le modèle Sentence-BERT une seule fois."""
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    return model
+# --- GESTION DE L'ÉTAT (SESSION STATE) ---
+# On initialise les variables pour stocker le texte si elles n'existent pas encore
+if 'text1_content' not in st.session_state:
+    st.session_state.text1_content = ""
+if 'text2_content' not in st.session_state:
+    st.session_state.text2_content = ""
 
-# Charger le modèle au démarrage de l'application
-sbert_model = load_sbert_model()
 
+# --- FONCTION D'EXTRACTION PDF ---
+def extract_text_from_pdf(uploaded_file):
+    """Extrait le texte brut d'un fichier PDF."""
+    try:
+        pdf_reader = pypdf.PdfReader(uploaded_file)
+        text = ""
+        for page in pdf_reader.pages:
+            # On extrait le texte de chaque page et on l'ajoute
+            text += page.extract_text() + "\n"
+        return text
+    except Exception as e:
+        st.error(f"Erreur lors de la lecture du PDF : {e}")
+        return ""
+
+
+# --- CALLBACKS POUR L'UPLOAD ---
+# Ces fonctions sont appelées dès qu'un fichier est chargé
+def update_text1_from_pdf():
+    uploaded_file = st.session_state.pdf1_uploader
+    if uploaded_file is not None:
+        text = extract_text_from_pdf(uploaded_file)
+        st.session_state.text1_content = text
+
+
+def update_text2_from_pdf():
+    uploaded_file = st.session_state.pdf2_uploader
+    if uploaded_file is not None:
+        text = extract_text_from_pdf(uploaded_file)
+        st.session_state.text2_content = text
+
+
+# --- FONCTION DE PRÉTRAITEMENT ---
 def preprocess_text(text):
-    """
-    Applique le prétraitement au texte avec RegEx (sans NLTK) :
-    1. Met en minuscules
-    2. Supprime la ponctuation et les chiffres
-    """
-    # 1. Minuscules
     text_lower = text.lower()
-
-    # 2. Suppression de tout ce qui n'est pas une lettre ou un espace
-    # C'est ici que 're' est utilisé
     text_cleaned = re.sub(r'[^a-z\s]', '', text_lower)
-
-    # 3. Suppression des espaces multiples
     text_cleaned = re.sub(r'\s+', ' ', text_cleaned).strip()
-
     return text_cleaned
 
 
+# --- CHARGEMENT MODÈLE S-BERT ---
+@st.cache_resource
+def load_sbert_model():
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    return model
+
+
+sbert_model = load_sbert_model()
+
+# --- INTERFACE ---
 st.set_page_config(page_title="Détecteur de Similarité", layout="wide")
 st.title("🔎 Détecteur de Similarité de Texte (Plagiat)")
-st.write("Comparaison de modèles pour la détection de similarité.")
+st.write("Comparez deux textes par copier-coller ou en important des fichiers PDF.")
 
 st.divider()
 
@@ -43,128 +73,114 @@ st.header("1. Choisissez votre modèle")
 model_choice = st.radio(
     "Sélectionnez la méthode d'analyse :",
     ('TF-IDF', 'Sentence-BERT (S-BERT)', 'LSTM'),
-    horizontal=True,
-    key="model_select",
-    help="Choisissez l'algorithme à utiliser pour la comparaison."
+    horizontal=True
 )
 
-# --- 2. OPTIONS CONDITIONNELLES (POUR TF-IDF) ---
-# Cette section n'apparaîtra que si 'TF-IDF' est sélectionné
-ngram_tuple = (1, 1)  # Valeur par défaut
+ngram_tuple = (1, 1)
 if model_choice == 'TF-IDF':
     st.subheader("Options TF-IDF")
     ngram_max = st.selectbox(
         "Taille maximale des N-grams :",
         (1, 2, 3, 4),
-        index=0,
-        format_func=lambda x: f"{x} (jusqu'à {x}-grams)" if x > 1 else f"{x} (mots seuls)",
+        format_func=lambda x: f"{x} (jusqu'à {x}-grams)" if x > 1 else f"{x} (mots seuls)"
     )
-    # TfidfVectorizer attend un tuple (min_n, max_n)
     ngram_tuple = (1, ngram_max)
 
 st.divider()
 
-# --- 3. ENTRÉE DES TEXTES ---
-st.header("2. Entrez vos textes")
+# --- 2. ENTRÉE DES TEXTES (AVEC UPLOAD PDF) ---
+st.header("2. Importez ou collez vos textes")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.header("Texte 1")
-    text1 = st.text_area("Collez votre premier texte ici :", height=300, key="txt1")
+    st.subheader("Document 1")
+    # Uploader de fichier (déclenche la mise à jour du texte)
+    st.file_uploader(
+        "Importer un PDF (optionnel)",
+        type="pdf",
+        key="pdf1_uploader",
+        on_change=update_text1_from_pdf
+    )
+    # Zone de texte (liée à la variable 'text1_content' du session state)
+    text1 = st.text_area(
+        "Contenu du texte 1 :",
+        height=300,
+        key="text1_content"  # La clé lie ce widget à st.session_state.text1_content
+    )
 
 with col2:
-    st.header("Texte 2")
-    text2 = st.text_area("Collez votre deuxième texte ici :", height=300, key="txt2")
+    st.subheader("Document 2")
+    st.file_uploader(
+        "Importer un PDF (optionnel)",
+        type="pdf",
+        key="pdf2_uploader",
+        on_change=update_text2_from_pdf
+    )
+    text2 = st.text_area(
+        "Contenu du texte 2 :",
+        height=300,
+        key="text2_content"  # La clé lie ce widget à st.session_state.text2_content
+    )
 
 st.divider()
 
-# --- 4. BOUTON ET LOGIQUE DE CALCUL ---
+# --- 3. CALCUL ---
 if st.button("Calculer la Similarité", type="primary"):
 
-    # Vérifier si les textes sont vides
-    if not (text1.strip() and text2.strip()):
-        st.warning("Veuillez entrer du texte dans les deux boîtes.")
+    # On récupère le contenu directement depuis les zones de texte
+    # (qui peuvent avoir été remplies par le PDF ou manuellement)
+    content1 = text1.strip()
+    content2 = text2.strip()
+
+    if not (content1 and content2):
+        st.warning("Veuillez fournir du texte pour les deux documents.")
 
     else:
-        # --- LOGIQUE DE ROUTAGE (selon le modèle choisi) ---
-
         if model_choice == 'TF-IDF':
-            st.subheader(f"Résultats (Modèle : TF-IDF avec N-grams={ngram_tuple})")
+            st.subheader(f"Résultats (TF-IDF : {ngram_tuple})")
             try:
-                # 1. Prétraitement
-                st.write("Prétraitement en cours...")
-                proc_text1 = preprocess_text(text1)
-                proc_text2 = preprocess_text(text2)
+                proc_text1 = preprocess_text(content1)
+                proc_text2 = preprocess_text(content2)
                 documents = [proc_text1, proc_text2]
 
-                # 2. Vectorisation (AVEC N-GRAMS)
-                st.write(f"Vectorisation (TF-IDF) avec n-grams de {ngram_tuple}...")
-
-                # C'est ici que l'option n-gram est passée au modèle
                 vectorizer = TfidfVectorizer(ngram_range=ngram_tuple)
                 tfidf_matrix = vectorizer.fit_transform(documents)
 
-                # 3. Modélisation (Calcul de la similarité cosinus)
-                st.write("Calcul de la similarité cosinus...")
                 cosine_sim = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])
                 similarity_score = cosine_sim[0][0]
 
-                # Affichage des résultats
                 st.divider()
-                score_percent = similarity_score * 100
-                st.metric(
-                    label="Score de Similarité (TF-IDF)",
-                    value=f"{score_percent:.2f} %"
-                )
+                st.metric("Score de Similarité", f"{similarity_score * 100:.2f} %")
                 st.progress(similarity_score)
 
                 if similarity_score > 0.8:
-                    st.error("🚨 **Alerte :** Similarité très élevée. Risque de plagiat.")
+                    st.error("🚨 Risque élevé de plagiat.")
                 elif similarity_score > 0.5:
-                    st.warning("⚠️ **Avertissement :** Similarité notable.")
+                    st.warning("⚠️ Similarité notable.")
                 else:
-                    st.success("✅ **OK :** Les textes semblent différents.")
+                    st.success("✅ Textes différents.")
 
             except ValueError:
-                st.warning("Les textes sont vides après nettoyage. Impossible de calculer la similarité.")
+                st.warning("Erreur : Textes vides après nettoyage.")
 
-        # --- Blocs pour les futurs modèles ---
         elif model_choice == 'Sentence-BERT (S-BERT)':
-            st.subheader("Résultats (Modèle : Sentence-BERT)")
+            st.subheader("Résultats (Sentence-BERT)")
 
-            # S-BERT préfère le texte brut, pas de pré-traitement !
-            documents = [text1, text2]
-
-            # 1. Créer les embeddings (vecteurs sémantiques)
-            st.write("Calcul des embeddings sémantiques...")
+            documents = [content1, content2]
             embeddings = sbert_model.encode(documents)
-
-            # 2. Calculer la similarité cosinus
-            st.write("Calcul de la similarité cosinus...")
-            # On compare le vecteur 0 et le vecteur 1
             cosine_sim = util.pytorch_cos_sim(embeddings[0], embeddings[1])
-
-            # Extraire le score (c'est un tenseur PyTorch)
             similarity_score = cosine_sim[0][0].item()
 
-            # 3. Afficher les résultats
             st.divider()
-            score_percent = similarity_score * 100
-            st.metric(
-                label="Score de Similarité (S-BERT)",
-                value=f"{score_percent:.2f} %"
-            )
+            st.metric("Score Sémantique", f"{similarity_score * 100:.2f} %")
             st.progress(similarity_score)
 
             if similarity_score > 0.8:
-                st.error("🚨 **Alerte :** Similarité sémantique très élevée.")
+                st.error("🚨 Sens très proche.")
             elif similarity_score > 0.5:
-                st.warning("⚠️ **Avertissement :** Similarité sémantique notable.")
+                st.warning("⚠️ Sens similaire.")
             else:
-                st.success("✅ **OK :** Les textes semblent sémantiquement différents.")
+                st.success("✅ Sens différent.")
 
-            # --- BLOC LSTM (TOUJOURS EN ATTENTE) ---
         elif model_choice == 'LSTM':
-            st.subheader("Résultats (Modèle : LSTM)")
-            st.info("🚧 Ce modèle n'est pas encore développé.")
-            st.write("L'implémentation du modèle LSTM siamois viendra ici.")
+            st.info("🚧 Modèle LSTM en cours de développement.")
