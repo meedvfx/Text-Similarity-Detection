@@ -1,26 +1,22 @@
 import streamlit as st
 import re
-import pypdf  # Bibliothèque pour lire les PDF
+import pypdf  
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer, util
 
-# --- GESTION DE L'ÉTAT (SESSION STATE) ---
-# On initialise les variables pour stocker le texte si elles n'existent pas encore
+
 if 'text1_content' not in st.session_state:
     st.session_state.text1_content = ""
 if 'text2_content' not in st.session_state:
     st.session_state.text2_content = ""
 
 
-# --- FONCTION D'EXTRACTION PDF ---
 def extract_text_from_pdf(uploaded_file):
-    """Extrait le texte brut d'un fichier PDF."""
     try:
         pdf_reader = pypdf.PdfReader(uploaded_file)
         text = ""
         for page in pdf_reader.pages:
-            # On extrait le texte de chaque page et on l'ajoute
             text += page.extract_text() + "\n"
         return text
     except Exception as e:
@@ -28,8 +24,7 @@ def extract_text_from_pdf(uploaded_file):
         return ""
 
 
-# --- CALLBACKS POUR L'UPLOAD ---
-# Ces fonctions sont appelées dès qu'un fichier est chargé
+
 def update_text1_from_pdf():
     uploaded_file = st.session_state.pdf1_uploader
     if uploaded_file is not None:
@@ -44,7 +39,6 @@ def update_text2_from_pdf():
         st.session_state.text2_content = text
 
 
-# --- FONCTION DE PRÉTRAITEMENT ---
 def preprocess_text(text):
     text_lower = text.lower()
     text_cleaned = re.sub(r'[^a-z\s]', '', text_lower)
@@ -52,7 +46,6 @@ def preprocess_text(text):
     return text_cleaned
 
 
-# --- CHARGEMENT MODÈLE S-BERT ---
 @st.cache_resource
 def load_sbert_model():
     model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -61,14 +54,12 @@ def load_sbert_model():
 
 sbert_model = load_sbert_model()
 
-# --- INTERFACE ---
 st.set_page_config(page_title="Détecteur de Similarité", layout="wide")
 st.title("🔎 Détecteur de Similarité de Texte (Plagiat)")
 st.write("Comparez deux textes par copier-coller ou en important des fichiers PDF.")
 
 st.divider()
 
-# --- 1. CHOIX DU MODÈLE ---
 st.header("1. Choisissez votre modèle")
 model_choice = st.radio(
     "Sélectionnez la méthode d'analyse :",
@@ -88,24 +79,21 @@ if model_choice == 'TF-IDF':
 
 st.divider()
 
-# --- 2. ENTRÉE DES TEXTES (AVEC UPLOAD PDF) ---
 st.header("2. Importez ou collez vos textes")
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Document 1")
-    # Uploader de fichier (déclenche la mise à jour du texte)
     st.file_uploader(
         "Importer un PDF (optionnel)",
         type="pdf",
         key="pdf1_uploader",
         on_change=update_text1_from_pdf
     )
-    # Zone de texte (liée à la variable 'text1_content' du session state)
     text1 = st.text_area(
         "Contenu du texte 1 :",
         height=300,
-        key="text1_content"  # La clé lie ce widget à st.session_state.text1_content
+        key="text1_content"  
     )
 
 with col2:
@@ -119,7 +107,7 @@ with col2:
     text2 = st.text_area(
         "Contenu du texte 2 :",
         height=300,
-        key="text2_content"  # La clé lie ce widget à st.session_state.text2_content
+        key="text2_content"  
     )
 
 st.divider()
@@ -127,8 +115,7 @@ st.divider()
 # --- 3. CALCUL ---
 if st.button("Calculer la Similarité", type="primary"):
 
-    # On récupère le contenu directement depuis les zones de texte
-    # (qui peuvent avoir été remplies par le PDF ou manuellement)
+
     content1 = text1.strip()
     content2 = text2.strip()
 
