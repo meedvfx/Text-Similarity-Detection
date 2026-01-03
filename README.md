@@ -113,5 +113,18 @@ graph TD;
 
 Ce projet est sous licence MIT. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
-**Auteur :** Mohamed ZAHZOUH
-Copyright (c) 2025
+---
+
+## 👨‍💻 Auteur
+
+Ce projet a été développé par **Mohamed ZAHZOUH**.
+
+- 🌍 **LinkedIn** : [Mohamed ZAHZOUH](https://www.linkedin.com/in/mohamed-zahzouh-1402a7318/)
+- 📧 **Contact** : [mohamedzahzouh2006@gmail.com](mailto:mohamedzahzouh2006@gmail.com)
+
+---
+
+<center>
+  <sub>Réalisé avec ❤️ et Python.</sub>
+</center>
+
