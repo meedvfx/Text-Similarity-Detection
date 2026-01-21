@@ -7,13 +7,11 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer, util
 
-# --- 1. GESTION DE LA MÉMOIRE (SESSION STATE) ---
 if 'text1_content' not in st.session_state:
     st.session_state.text1_content = ""
 if 'text2_content' not in st.session_state:
     st.session_state.text2_content = ""
 
-# --- 2. FONCTIONS UTILITAIRES ---
 
 def extract_text_from_pdf(uploaded_file):
     """Extrait le texte d'un PDF."""
@@ -44,7 +42,6 @@ def preprocess_text(text):
     text_cleaned = re.sub(r'\s+', ' ', text_cleaned).strip()
     return text_cleaned
 
-# --- 3. CHARGEMENT DES MODÈLES (CACHÉ) ---
 
 @st.cache_resource
 def load_sbert_model():
@@ -55,7 +52,6 @@ def load_word2vec_model():
     print("Téléchargement du modèle GloVe (Word2Vec)...")
     return api.load("glove-wiki-gigaword-50")
 
-# --- 4. FONCTION SPÉCIFIQUE WORD2VEC ---
 def get_word2vec_embedding(text, model):
     words = preprocess_text(text).split()
     vectors = []
@@ -68,13 +64,11 @@ def get_word2vec_embedding(text, model):
     
     return np.mean(vectors, axis=0)
 
-# --- 5. INTERFACE ---
 st.set_page_config(page_title="Comparateur NLP", layout="wide")
 st.title("🔎 Détecteur de Similarité (TF-IDF, Word2Vec, BERT)")
 
 st.divider()
 
-# Choix du modèle
 st.header("1. Choisissez l'algorithme")
 model_choice = st.radio(
     "Méthode :",
@@ -89,7 +83,6 @@ if 'TF-IDF' in model_choice:
 
 st.divider()
 
-# Zones d'entrée
 st.header("2. Documents")
 col1, col2 = st.columns(2)
 
@@ -101,16 +94,14 @@ with col2:
     st.file_uploader("PDF 2", type="pdf", key="uploader2", on_change=update_text2_from_pdf)
     text2 = st.text_area("Texte 2", height=300, key="text2_content")
 
-# --- 6. CALCUL ---
 if st.button("Lancer l'analyse", type="primary"):
     c1, c2 = text1.strip(), text2.strip()
     
     if not (c1 and c2):
         st.warning("Veuillez remplir les deux textes.")
     else:
-        score = 0.0 # Initialisation
+        score = 0.0 
         
-        # === CAS 1 : TF-IDF ===
         if 'TF-IDF' in model_choice:
             st.subheader("📊 Résultats TF-IDF")
             try:
@@ -125,7 +116,6 @@ if st.button("Lancer l'analyse", type="primary"):
                 st.warning("Erreur : Textes vides après nettoyage.")
                 score = 0.0
 
-        # === CAS 2 : WORD2VEC ===
         elif 'Word2Vec' in model_choice:
             st.subheader("🧠 Résultats Word2Vec (GloVe)")
             with st.spinner("Chargement du modèle Word2Vec en cours..."):
@@ -134,12 +124,10 @@ if st.button("Lancer l'analyse", type="primary"):
             v1 = get_word2vec_embedding(c1, w2v_model)
             v2 = get_word2vec_embedding(c2, w2v_model)
             
-            # Calcul Cosinus
             score = cosine_similarity([v1], [v2])[0][0]
             
             st.metric("Score Sémantique (Moyenne des mots)", f"{score*100:.2f} %")
 
-        # === CAS 3 : SENTENCE-BERT ===
         elif 'Sentence-BERT' in model_choice:
             st.subheader("🤖 Résultats Sentence-BERT")
             with st.spinner("Chargement du modèle BERT..."):
@@ -150,8 +138,6 @@ if st.button("Lancer l'analyse", type="primary"):
             
             st.metric("Score Sémantique (Contextuel)", f"{score*100:.2f} %")
 
-        # --- CORRECTION DU BUG D'AFFICHAGE ---
-        # On force le score entre 0.0 et 1.0 pour éviter le crash de st.progress
         safe_score = min(max(float(score), 0.0), 1.0)
         st.progress(safe_score)
 
