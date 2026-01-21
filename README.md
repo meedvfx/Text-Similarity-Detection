@@ -81,24 +81,6 @@ L'application s'ouvrira automatiquement dans votre navigateur par défaut (gén�
 
 ---
 
-## 📂 Structure du Projet
-
-```mermaid
-graph TD;
-    A[Text-Similarity-Detection] --> B[app.py];
-    A --> C[requirements.txt];
-    A --> D[README.md];
-    A --> E[LICENSE];
-    B --> F[Logique Streamlit];
-    B --> G[Extraction PDF];
-    B --> H[Modèles NLP];
-```
-
-*   `app.py` : Le cœur de l'application contenant l'interface et la logique.
-*   `requirements.txt` : Liste des librairies Python requises.
-
----
-
 ## 🛠️ Technologies Utilisées
 
 *   **[Streamlit](https://streamlit.io/)** : Interface utilisateur rapide et interactive.
